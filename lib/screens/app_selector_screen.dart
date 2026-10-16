@@ -29,8 +29,11 @@ class _AppSelectorScreenState extends State<AppSelectorScreen> {
     }
 
     try {
-      List<AppInfo> installed = await InstalledApps.getInstalledApps(true, true);
-      installed.sort((a, b) => a.name.compareTo(b.name));
+      List<AppInfo> installed = await InstalledApps.getInstalledApps(
+        excludeSystemApps: true,
+        withIcon: true,
+      );
+      installed.sort((a, b) => (a.name).compareTo(b.name));
       if (mounted) {
         setState(() {
           apps = installed;
