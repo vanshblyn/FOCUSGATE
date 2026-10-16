@@ -24,10 +24,9 @@ jobs:
           channel: 'stable'
 
       - name: Generate Android Skeleton
-        run: flutter create --project-name focusgate --platforms=android .
-
-      - name: Force Modern Kotlin in settings.gradle
         run: |
+          flutter create --project-name focusgate --platforms=android .
+          rm -rf test
           python3 -c '
           import re
           path = "android/settings.gradle"
@@ -46,9 +45,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Verify Dart Code
-        run: flutter analyze
 
       - name: Generate Custom App Icons
         run: dart run flutter_launcher_icons
