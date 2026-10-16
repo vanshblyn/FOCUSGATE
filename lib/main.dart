@@ -1,8 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:app_usage/app_usage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/mcq_gatekeeper_screen.dart';
+import 'screens/app_selector_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const FocusGateApp());
 }
 
@@ -29,19 +34,98 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int totalSeconds = 25 * 60;
-  Timer? timer;
+  Timer? sessionTimer;
+  Timer? blockerLoop;
   bool isRunning = false;
-  bool isStrictAppLockOn = true;
+  bool isGatekeeperActive = true;
+  DateTime? unlockedUntil;
+
+  static const platform = MethodChannel('com.focusgate.app/system_settings');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    startBackgroundWatcher();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    sessionTimer?.cancel();
+    blockerLoop?.cancel();
+    super.dispose();
+  }
+
+  // Blocker monitoring loop (Checks active foreground app every 1.5 seconds)
+  void startBackgroundWatcher() {
+    blockerLoop?.cancel();
+    blockerLoop = Timer.periodic(const Duration(milliseconds: 1500), (t) async {
+      if (!isGatekeeperActive) return;
+
+      // If user recently cleared MCQs and has unlock grace period
+      if (unlockedUntil != null && DateTime.now().isBefore(unlockedUntil!)) {
+        return;
+      }
+
+      try {
+        DateTime endDate = DateTime.now();
+        DateTime startDate = endDate.subtract(const Duration(seconds: 4));
+        List<AppUsageInfo> infos = await AppUsage().getAppUsage(startDate, endDate);
+
+        if (infos.isEmpty) return;
+
+        final prefs = await SharedPreferences.getInstance();
+        final blocked = prefs.getStringList('blocked_apps') ?? [
+          'com.instagram.android',
+          'com.google.android.youtube',
+        ];
+
+        for (var info in infos) {
+          if (blocked.contains(info.packageName) && info.usage.inSeconds > 0) {
+            // Trigger Gatekeeper
+            if (mounted) {
+              triggerStrictGatekeeper();
+            }
+            break;
+          }
+        }
+      } catch (_) {
+        // Permission not granted or query failed
+      }
+    });
+  }
+
+  void triggerStrictGatekeeper() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => McqGatekeeperScreen(
+          onUnlockSuccess: () {
+            Navigator.of(ctx).pop();
+            setState(() {
+              unlockedUntil = DateTime.now().add(const Duration(minutes: 15));
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('🎉 Verified! 15 Mins Pass Granted.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 
   void toggleTimer() {
     if (isRunning) {
-      timer?.cancel();
+      sessionTimer?.cancel();
       setState(() => isRunning = false);
     } else {
       setState(() => isRunning = true);
-      timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      sessionTimer = Timer.periodic(const Duration(seconds: 1), (t) {
         if (totalSeconds > 0) {
           setState(() => totalSeconds--);
         } else {
@@ -50,24 +134,6 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       });
     }
-  }
-
-  void openGatekeeperTest() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (ctx) => McqGatekeeperScreen(
-          onUnlockSuccess: () {
-            Navigator.of(ctx).pop();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('🎉 Verified! 15 Mins Entertainment Unlocked.'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          },
-        ),
-      ),
-    );
   }
 
   String formatTime(int seconds) {
@@ -85,9 +151,18 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('FocusGate', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.security, color: Color(0xFF00F2FE)),
-            onPressed: openGatekeeperTest,
-            tooltip: 'Test MCQ Gatekeeper',
+            icon: const Icon(Icons.apps_rounded, color: Color(0xFF00F2FE)),
+            tooltip: 'Blocked Apps List',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AppSelectorScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.shield, color: Color(0xFFFFB800)),
+            tooltip: 'Test Gatekeeper',
+            onPressed: triggerStrictGatekeeper,
           )
         ],
       ),
@@ -97,8 +172,8 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              height: 240,
-              width: 240,
+              height: 220,
+              width: 220,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: const Color(0xFF00F2FE), width: 4),
@@ -113,11 +188,11 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Center(
                 child: Text(
                   formatTime(totalSeconds),
-                  style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: const TextStyle(fontSize: 44, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 35),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF00F2FE),
@@ -143,29 +218,35 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('App Gatekeeper Lock', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      Text('Strict Gatekeeper Shield', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       SizedBox(height: 4),
-                      Text('Require 3 MCQs to open Insta/YT', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                      Text('Auto-intercepts target apps', style: TextStyle(color: Colors.white60, fontSize: 12)),
                     ],
                   ),
                   Switch(
-                    value: isStrictAppLockOn,
+                    value: isGatekeeperActive,
                     activeColor: const Color(0xFFFFB800),
-                    onChanged: (val) => setState(() => isStrictAppLockOn = val),
+                    onChanged: (val) {
+                      setState(() => isGatekeeperActive = val);
+                    },
                   )
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFFFB800),
-                side: const BorderSide(color: Color(0xFFFFB800)),
+                foregroundColor: const Color(0xFF00F2FE),
+                side: const BorderSide(color: Color(0xFF00F2FE)),
               ),
-              onPressed: openGatekeeperTest,
-              icon: const Icon(Icons.quiz),
-              label: const Text('Test MCQ Pop-up Gate Now'),
-            )
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AppSelectorScreen()),
+                );
+              },
+              icon: const Icon(Icons.list_alt),
+              label: const Text('Manage Blocked Apps List'),
+            ),
           ],
         ),
       ),

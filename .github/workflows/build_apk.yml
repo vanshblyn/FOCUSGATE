@@ -26,10 +26,11 @@ jobs:
       - name: Generate Android Skeleton
         run: flutter create --project-name focusgate --platforms=android .
 
-      - name: Add App Locking Permissions to Manifest
+      - name: Inject Strict Android Blocker Manifest
         run: |
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />\n    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />' android/app/src/main/AndroidManifest.xml
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />\n    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />' android/app/src/main/AndroidManifest.xml
           sed -i 's/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android"/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android" xmlns:tools="http:\/\/schemas.android.com\/tools"/' android/app/src/main/AndroidManifest.xml
+          sed -i '/<\/activity>/a \        <service android:name="com.pravera.flutter_foreground_task.service.ForegroundService" android:foregroundServiceType="specialUse" android:exported="false" />' android/app/src/main/AndroidManifest.xml
 
       - name: Install dependencies
         run: flutter pub get
