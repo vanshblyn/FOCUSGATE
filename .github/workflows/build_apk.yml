@@ -26,6 +26,7 @@ jobs:
       - name: Generate Android Skeleton & Fix Kotlin
         run: |
           flutter create --project-name focusgate --platforms=android .
+          sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "1.9.22"/' android/settings.gradle
           sed -i '1s/^/buildscript {\n    ext.kotlin_version = "1.9.22"\n}\n/' android/build.gradle
 
       - name: Inject Strict Android Blocker Manifest
