@@ -26,6 +26,19 @@ jobs:
       - name: Generate Android Skeleton
         run: flutter create --project-name focusgate --platforms=android .
 
+      - name: Force Modern Kotlin in settings.gradle
+        run: |
+          python3 -c '
+          import re
+          path = "android/settings.gradle"
+          with open(path, "r") as f:
+              content = f.read()
+          content = re.sub(r"id\s+[\"'\''\"]org\.jetbrains\.kotlin\.android[\"'\''\"]\s+version\s+[\"'\''\"][^\"'\''\"]+[\"'\''\"]", "id \"org.jetbrains.kotlin.android\" version \"1.9.22\"", content)
+          with open(path, "w") as f:
+              f.write(content)
+          '
+          cat android/settings.gradle | grep kotlin || true
+
       - name: Inject Strict Android Blocker Manifest
         run: |
           sed -i '/<application/i \    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />\n    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />' android/app/src/main/AndroidManifest.xml
