@@ -23,20 +23,60 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
-      - name: Generate Android Skeleton & Fix Gradle Config
+      - name: Setup Android Project & Force Kotlin 1.9.22
         run: |
           flutter create --project-name focusgate --platforms=android .
           rm -rf test
-          python3 -c '
-          import re
-          path = "android/settings.gradle"
-          with open(path, "r") as f:
-              content = f.read()
-          content = re.sub(r"id\s+[\"'\''\"]org\.jetbrains\.kotlin\.android[\"'\''\"]\s+version\s+[\"'\''\"][^\"'\''\"]+[\"'\''\"]", "id \"org.jetbrains.kotlin.android\" version \"1.9.22\"", content)
-          with open(path, "w") as f:
-              f.write(content)
-          '
-          # Set minSdkVersion to 23
+
+          cat << 'EOF' > android/settings.gradle
+          pluginManagement {
+              def flutterSdkPath = {
+                  def properties = new Properties()
+                  file("local.properties").withInputStream { properties.load(it) }
+                  def flutterSdkPath = properties.getProperty("flutter.sdk")
+                  assert flutterSdkPath != null : "flutter.sdk not set in local.properties"
+                  return flutterSdkPath
+              }()
+
+              includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+
+          plugins {
+              id "dev.flutter.flutter-plugin-loader" version "1.0.0"
+              id "com.android.application" version "8.1.0" apply false
+              id "org.jetbrains.kotlin.android" version "1.9.22" apply false
+          }
+
+          include ":app"
+          EOF
+
+          cat << 'EOF' > android/build.gradle
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
+          rootProject.buildDir = "../build"
+          subprojects {
+              project.buildDir = "${rootProject.buildDir}/${project.name}"
+          }
+          subprojects {
+              project.evaluationDependsOn(":app")
+          }
+
+          tasks.register("clean", Delete) {
+              delete rootProject.buildDir
+          }
+          EOF
+
           sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle
           sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/g' android/app/build.gradle
 
