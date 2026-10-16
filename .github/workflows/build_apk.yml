@@ -23,10 +23,14 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
-      - name: Setup Android Project & Force Kotlin 1.9.22
+      - name: Setup Android Project & Fix Gradle Compatibility
         run: |
           flutter create --project-name focusgate --platforms=android .
           rm -rf test
+
+          # Upgrade Gradle wrapper to 8.4
+          sed -i 's/gradle-.*-all.zip/gradle-8.4-bin.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+          sed -i 's/gradle-.*-bin.zip/gradle-8.4-bin.zip/g' android/gradle/wrapper/gradle-wrapper.properties
 
           cat << 'EOF' > android/settings.gradle
           pluginManagement {
