@@ -23,7 +23,7 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
-      - name: Generate Android Skeleton
+      - name: Generate Android Skeleton & Fix Gradle Config
         run: |
           flutter create --project-name focusgate --platforms=android .
           rm -rf test
@@ -36,6 +36,9 @@ jobs:
           with open(path, "w") as f:
               f.write(content)
           '
+          # Set minSdkVersion to 23
+          sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle
+          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/g' android/app/build.gradle
 
       - name: Inject Strict Android Blocker Manifest
         run: |
