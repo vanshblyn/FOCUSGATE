@@ -37,7 +37,6 @@ jobs:
           with open(path, "w") as f:
               f.write(content)
           '
-          cat android/settings.gradle | grep kotlin || true
 
       - name: Inject Strict Android Blocker Manifest
         run: |
@@ -47,6 +46,9 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Verify Dart Code
+        run: flutter analyze
 
       - name: Generate Custom App Icons
         run: dart run flutter_launcher_icons
