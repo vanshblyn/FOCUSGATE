@@ -32,8 +32,10 @@ jobs:
           sed -i 's/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android"/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android" xmlns:tools="http:\/\/schemas.android.com\/tools"/' android/app/src/main/AndroidManifest.xml
           sed -i '/<\/activity>/a \        <service android:name="com.pravera.flutter_foreground_task.service.ForegroundService" android:foregroundServiceType="specialUse" android:exported="false" />' android/app/src/main/AndroidManifest.xml
 
-      - name: Install dependencies
-        run: flutter pub get
+      - name: Install dependencies & Patch Kotlin Versions
+        run: |
+          flutter pub get
+          find /home/runner/.pub-cache -name "build.gradle" -exec sed -i 's/1.3.50/1.8.22/g' {} +
 
       - name: Generate Custom App Icons
         run: dart run flutter_launcher_icons
