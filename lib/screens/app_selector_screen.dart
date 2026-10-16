@@ -30,7 +30,7 @@ class _AppSelectorScreenState extends State<AppSelectorScreen> {
 
     try {
       List<AppInfo> installed = await InstalledApps.getInstalledApps(true, true);
-      installed.sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
+      installed.sort((a, b) => a.name.compareTo(b.name));
       if (mounted) {
         setState(() {
           apps = installed;
@@ -88,7 +88,7 @@ class _AppSelectorScreenState extends State<AppSelectorScreen> {
                         leading: app.icon != null
                             ? Image.memory(app.icon!, width: 40, height: 40)
                             : const Icon(Icons.android, color: Colors.white),
-                        title: Text(app.name ?? 'App', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        title: Text(app.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                         subtitle: Text(app.packageName, style: const TextStyle(color: Colors.white54, fontSize: 11)),
                         trailing: Switch(
                           activeColor: const Color(0xFFFFB800),
