@@ -28,14 +28,20 @@ class _AppSelectorScreenState extends State<AppSelectorScreen> {
       blockedPackages = saved.toSet();
     }
 
-    List<AppInfo> installed = await InstalledApps.getInstalledApps(true, true);
-    // Sort alphabetically
-    installed.sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
-
-    setState(() {
-      apps = installed;
-      isLoading = false;
-    });
+    try {
+      List<AppInfo> installed = await InstalledApps.getInstalledApps(true, true);
+      installed.sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
+      if (mounted) {
+        setState(() {
+          apps = installed;
+          isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
   }
 
   Future<void> toggleApp(String packageName) async {
@@ -61,36 +67,38 @@ class _AppSelectorScreenState extends State<AppSelectorScreen> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF00F2FE)))
-          : ListView.builder(
-              itemCount: apps.length,
-              itemBuilder: (context, index) {
-                final app = apps[index];
-                final isBlocked = blockedPackages.contains(app.packageName);
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.04),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isBlocked ? const Color(0xFFFFB800) : Colors.transparent,
-                      width: 1,
-                    ),
-                  ),
-                  child: ListTile(
-                    leading: app.icon != null
-                        ? Image.memory(app.icon!, width: 40, height: 40)
-                        : const Icon(Icons.android, color: Colors.white),
-                    title: Text(app.name ?? 'App', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    subtitle: Text(app.packageName, style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                    trailing: Switch(
-                      activeColor: const Color(0xFFFFB800),
-                      value: isBlocked,
-                      onChanged: (_) => toggleApp(app.packageName),
-                    ),
-                  ),
-                );
-              },
-            ),
+          : apps.isEmpty
+              ? const Center(child: Text('No apps found', style: TextStyle(color: Colors.white70)))
+              : ListView.builder(
+                  itemCount: apps.length,
+                  itemBuilder: (context, index) {
+                    final app = apps[index];
+                    final isBlocked = blockedPackages.contains(app.packageName);
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isBlocked ? const Color(0xFFFFB800) : Colors.transparent,
+                          width: 1,
+                        ),
+                      ),
+                      child: ListTile(
+                        leading: app.icon != null
+                            ? Image.memory(app.icon!, width: 40, height: 40)
+                            : const Icon(Icons.android, color: Colors.white),
+                        title: Text(app.name ?? 'App', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        subtitle: Text(app.packageName, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                        trailing: Switch(
+                          activeColor: const Color(0xFFFFB800),
+                          value: isBlocked,
+                          onChanged: (_) => toggleApp(app.packageName),
+                        ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }
