@@ -26,8 +26,16 @@ jobs:
       - name: Generate Android Skeleton
         run: flutter create --project-name focusgate --platforms=android .
 
+      - name: Add App Locking Permissions to Manifest
+        run: |
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />\n    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />' android/app/src/main/AndroidManifest.xml
+          sed -i 's/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android"/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android" xmlns:tools="http:\/\/schemas.android.com\/tools"/' android/app/src/main/AndroidManifest.xml
+
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Generate Custom App Icons
+        run: dart run flutter_launcher_icons
 
       - name: Build APK
         run: flutter build apk --release
